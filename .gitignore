@@ -1,0 +1,40 @@
+# --- Python & TensorFlow ---
+__pycache__/
+*.py[cod]
+*.so
+.venv
+env/
+.ipynb_checkpoints/
+
+# --- FPGA & Quartus (The "Trash" Files) ---
+db/
+incremental_db/
+output_files/
+simulation/
+*.qws
+*.qpf
+*.qsf
+*.sof
+*.pof
+*.smsg
+*.summary
+*.jdi
+*.pin
+*.done
+
+# --- Verilator & Simulation ---
+obj_dir/
+work/
+*.vcd
+*.vpd
+*.fsdb
+logs/
+sim_build/
+
+# --- Generated Verification Vectors (Don't commit 100MB of hex files) ---
+verif/vectors/*.hex
+!verif/vectors/.keep
+
+# --- IDEs ---
+.vscode/
+.idea/
