@@ -17,4 +17,16 @@ def main():
     #int8_val = Round(Float_Value*127.0 / Max_Abs_value)
 
     w_max = np.max(weights_float)
-        
+    i_max = np.max(input_float)
+
+    #cast to int8
+    w8 = np.round(weights_float * (127.0/w_max)).astype(np.int8)
+    i8 = np.round(input_float * (127.0/i_max)).asptype(np.int8)
+
+    hex_filename = "weights_output.hex"
+    with open(hex_filename, "w") as f:
+        for val in w8.flatten():
+            f.write(f":{val & 0xFF:02x}\n")
+
+if __name__ == "__main__":
+    main()
