@@ -1,5 +1,17 @@
-//PE implementation for Systolic Array
-//Using this for simulation for now
+//PE implementation for Systolic Array, for simulation
+// EXAMPLE INSTANTIATION:
+/******************************************************************************
+pe #(.WIDTH(16)) pe_inst_16 (
+    .clk(clk),
+    .rst_n(rst_n),
+    .in_a(data_a_16bit),
+    .in_b(data_b_16bit),
+    .out_a(out_data_a_16bit),
+    .out_b(out_data_b_16bit),
+    .acc(accumulator_64bit)  // 4*16 = 64 bits
+);
+*******************************************************************************/
+
 module pe #(parameter WIDTH = 8) (
     input logic clk,
     input logic rst_n,
