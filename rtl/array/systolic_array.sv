@@ -2,19 +2,19 @@
 //References: https://hackmd.io/@ampheo/how-to-do-systolic-architecture-on-fpga-with-verilog
 //MATRIX C = A×B
 module systolic_array #(
-    parameter ARRAY_SIZE = 4;
-    parameter DATA_WIDTH = 8;
+    parameter ARRAY_SIZE = 4,
+    parameter DATA_WIDTH = 8
 ) (
-  input logic clk;
-  input logic rst_n;
+  input logic clk,
+  input logic rst_n,
 
   //LEFT edge receives A stream; one element per row and staggered
   //TOP edge receives B stream; one element per col and staggered
-  input logic signed [DATA_WIDTH-1:0] a_in [0:ARRAY_SIZE-1];
-  input logic signed [DATA_WIDTH-1:0] b_in [0:ARRAY_SIZE-1];
+  input logic signed [DATA_WIDTH-1:0] a_in [0:ARRAY_SIZE-1],
+  input logic signed [DATA_WIDTH-1:0] b_in [0:ARRAY_SIZE-1],
 
   //Partial/full sums from all PEs
-  output logic signed [DATA_WIDTH*2-1:0] c_out [0:ARRAY_SIZE-1][0:ARRAY_SIZE-1];
+  output logic signed [DATA_WIDTH*2-1:0] c_out [0:ARRAY_SIZE-1][0:ARRAY_SIZE-1]
 );
 
 //Wires between PEs
@@ -30,7 +30,7 @@ generate
     end
     //Top edge inputs assignment
     for(int j = 0; j < ARRAY_SIZE; j=j+1) begin
-        assign b_bus[0][i] = b_in[i];
+        assign b_bus[0][j] = b_in[j];
     end
 
     for(int i =0 ; i < ARRAY_SIZE; i=i+1) begin

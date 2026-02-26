@@ -22,8 +22,8 @@ module pe #(parameter WIDTH = 8) (
     output logic signed [4*WIDTH-1:0] acc //Accumulated result
 );
 
-    always_ff @(posedge clk or posedge rst) begin
-        if(!rst) begin 
+    always_ff @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin 
             out_a <= 0;
             out_b <= 0;
             acc   <= 0;

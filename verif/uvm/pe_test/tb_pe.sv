@@ -9,7 +9,7 @@ module tb_pe;
     logic [31:0] out_sum;
 
     //DUT instantiation
-    pu u_pe (
+    pe u_pe (
         .clk(clk),
         .rst_n(rst_n),
         .in_a(in_a), 
@@ -35,7 +35,7 @@ module tb_pe;
         rst_n = 0; in_a = 0; in_b = 0; in_sum = 0;
         #20 rst_n = 1;
 
-        for(int i = 0; i < 100;i++) begin 
+        for(int i = 0; i < 100; i++) begin 
             rand_a = $random;
             rand_b = $random;
 
@@ -50,9 +50,9 @@ module tb_pe;
             
             assert(out_sum == expected_sum)
                 else $error("Time %0t: mismatch A=%d B=%d | DUT=%d Ref=%d", $time, rand_a, rand_b, out_sum, expected_sum);
-            end
-
-            $display ("Test complete, 100 random vectors passed");
-            $finish
         end
+
+        $display ("Test complete, 100 random vectors passed");
+        $finish
+    end
 endmodule
