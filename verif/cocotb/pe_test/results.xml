@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1781104681" />
+    <testcase name="pe_random_mac" classname="test_pe" file="/home/zoro/accelerator/verif/cocotb/pe_test/test_pe.py" lineno="15" time="0.002248048782348633" sim_time_ns="1030.0" ratio_time="458175.1108282957" />
+  </testsuite>
+</testsuites>

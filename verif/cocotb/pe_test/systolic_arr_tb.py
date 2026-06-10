@@ -1,63 +1,45 @@
 from __future__ import annotations
 import os
-import sys
-from pathlib import path
-
-import pytest
+from pathlib import Path
 
 from cocotb_tools.runner import get_runner
 
-def test_pe_runner();
-    """ Simulates the pe using python runner
+# Python runner for the single-PE cocotb test (test_pe.py)
+# Usage: python systolic_arr_tb.py, or via pytest
+# SIM/TOPLEVEL_LANG are overridable through the environment
 
 
-    """
+def test_pe_runner():
+    """Simulates the pe using the cocotb python runner"""
 
-    hdl_toplevel_lang = os.getenv("TOPLEVEL_LANG","SystemVerilog")
-    sim = os.getenv("SIM","verilator");
+    hdl_toplevel_lang = os.getenv("TOPLEVEL_LANG", "verilog")
+    sim = os.getenv("SIM", "questa")
 
-    proj_path = Path(__file__).resolve().parent.parent
+    proj_path = Path(__file__).resolve().parents[3]
+
+    sources = [proj_path / "rtl" / "pe" / "pe.sv"]
 
     build_args = []
-
-    if hdl_toplevel_lang == "SystemVerilog":
-        sources = [proj_path/ "rtl" / "pe" / "pe.sv"]
-
-        """insert check here for if sim is something idk
-        if sim in .....
-        """
-
-    else:
-        raise ValueError(
-                f"a valid value was not provided for TOPLEVEL_LANG={hdl_toplevel_lang}, (should be systermverilog)"
-        )
-
-    extra_args = []
-    parameters = {
-        "in_a": 8,
-        "in_b": 8,
-        "out_a": 8,
-        "out_b": 8
-    }
-
-    sys.path.append(str(proj_path / "tests"))
+    if sim == "verilator":
+        build_args += ["--timing"]
 
     runner = get_runner(sim)
 
-    runner_build (
-        hdl_toplevel = "accelerator_toplevel",
-        source = sources,
-        build_args = build_args,
-        parameters = parameters,
-        always = True,
+    runner.build(
+        hdl_toplevel="pe",
+        sources=sources,
+        parameters={"WIDTH": 8},
+        build_args=build_args,
+        always=True,
     )
 
     runner.test(
-        hdl_toplevel="accelerator_toplevel",
+        hdl_toplevel="pe",
         hdl_toplevel_lang=hdl_toplevel_lang,
-        test_module="pe_tests",
-        test_args = extra_args,
+        test_module="test_pe",
+        test_dir=Path(__file__).resolve().parent,
     )
 
-    if __name__ == __main__:
-        test_pe_runner()
+
+if __name__ == "__main__":
+    test_pe_runner()

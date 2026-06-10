@@ -1,0 +1,7 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1781105805" />
+    <testcase name="accelerator_golden_cases" classname="tb_accelerator" file="/home/zoro/accelerator/verif/cocotb/tb_accelerator.py" lineno="123" time="0.03348374366760254" sim_time_ns="5930.0" ratio_time="177100.86598642846" />
+    <testcase name="accelerator_heavy_backpressure" classname="tb_accelerator" file="/home/zoro/accelerator/verif/cocotb/tb_accelerator.py" lineno="140" time="0.0038793087005615234" sim_time_ns="980.0" ratio_time="252622.3292975232" />
+  </testsuite>
+</testsuites>
