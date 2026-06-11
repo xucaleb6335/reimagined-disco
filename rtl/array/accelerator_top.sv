@@ -3,11 +3,20 @@
 //  Beats 0..ARRAY_SIZE-1            : matrix A, one column per beat (lane i = A[i][k])
 //  Beats ARRAY_SIZE..2*ARRAY_SIZE-1 : matrix B, one row per beat    (lane j = B[k][j])
 //Lane n of tdata is tdata[(n+1)*DATA_WIDTH-1 -: DATA_WIDTH]
+//Demo mode (CSR words 18/19): the array steps only on the demo tick and
+//the tile writer paints the accumulators through the avm_* master
+//(connect avm_* to the UP VGA pixel buffer slave in Qsys)
 module accelerator_top #(
     parameter ARRAY_SIZE = 4,
     parameter DATA_WIDTH = 8,
     parameter ADDR_WIDTH = 6,
-    parameter FIFO_DEPTH = 16
+    parameter FIFO_DEPTH = 16,
+    parameter VGA_FRAME_DIV  = 50_000, //tile writer pacing: one tile per 1 ms at 50 MHz
+    parameter VGA_TILE_SIZE  = 16,
+    parameter VGA_TILE_GAP   = 2,
+    parameter VGA_ORIGIN_X   = 8,
+    parameter VGA_ORIGIN_Y   = 8,
+    parameter VGA_BASE_ADDR  = 32'h0
 ) (
     input logic clk,
     input logic rst_n,
@@ -22,7 +31,13 @@ module accelerator_top #(
     //AXI-Stream sink for data ingestion
     input logic [ARRAY_SIZE*DATA_WIDTH-1:0] tdata,
     input logic tvalid,
-    output logic tready
+    output logic tready,
+
+    //Avalon-MM master into the VGA pixel buffer (idle unless demo_mode)
+    output logic [31:0] avm_address,
+    output logic avm_write,
+    output logic [15:0] avm_writedata,
+    input logic avm_waitrequest
 );
 
     // ==========================================
@@ -48,6 +63,13 @@ module accelerator_top #(
 
     //Array results to the CSR readout
     logic signed [4*DATA_WIDTH-1:0] c_out [0:ARRAY_SIZE-1][0:ARRAY_SIZE-1];
+
+    //Demo mode plumbing
+    logic demo_mode;
+    logic [31:0] demo_div;
+    logic demo_pulse;
+    logic frame_pulse;
+    logic tick_en;
 
     // ==========================================
     // AXI-Stream demux: first ARRAY_SIZE beats -> A FIFO, next -> B FIFO
@@ -106,6 +128,16 @@ module accelerator_top #(
         end
     endgenerate
 
+    //Full speed normally; in demo mode the datapath only steps on the tick
+    assign tick_en = demo_mode ? demo_pulse : 1'b1;
+
+    demo_tick u_demo_tick (
+        .clk(clk),
+        .rst_n(rst_n),
+        .divider(demo_div),
+        .tick(demo_pulse)
+    );
+
     control_FSM #(
         .ARRAY_SIZE(ARRAY_SIZE),
         .MAT_DIM(ARRAY_SIZE)
@@ -115,6 +147,7 @@ module accelerator_top #(
         .start(start),
         .a_fifo_empty(a_fifo_empty),
         .b_fifo_empty(b_fifo_empty),
+        .tick_en(tick_en),
         .enable_array(enable_array),
         .pop_fifos(pop_fifos),
         .clear_acc(clear_acc),
@@ -170,7 +203,50 @@ module accelerator_top #(
         .avs_readdata(avs_readdata),
         .start(start),
         .done(done),
-        .c_result(c_out)
+        .c_result(c_out),
+        .demo_mode(demo_mode),
+        .demo_div(demo_div)
+    );
+
+    // ==========================================
+    // VGA tile writer (Option B demo)
+    // ==========================================
+    //Flatten c_out so the tile writer port stays a plain packed vector
+    logic [ARRAY_SIZE*ARRAY_SIZE*4*DATA_WIDTH-1:0] c_flat;
+    genvar fi, fj;
+    generate
+        for(fi = 0; fi < ARRAY_SIZE; fi=fi+1) begin : g_flat_row
+            for(fj = 0; fj < ARRAY_SIZE; fj=fj+1) begin : g_flat_col
+                assign c_flat[(fi*ARRAY_SIZE+fj+1)*4*DATA_WIDTH-1 -: 4*DATA_WIDTH] = c_out[fi][fj];
+            end
+        end
+    endgenerate
+
+    demo_tick u_frame_tick (
+        .clk(clk),
+        .rst_n(rst_n),
+        .divider(32'(VGA_FRAME_DIV)),
+        .tick(frame_pulse)
+    );
+
+    vga_tile_writer #(
+        .ARRAY_SIZE(ARRAY_SIZE),
+        .ACC_WIDTH(4*DATA_WIDTH),
+        .TILE_SIZE(VGA_TILE_SIZE),
+        .TILE_GAP(VGA_TILE_GAP),
+        .ORIGIN_X(VGA_ORIGIN_X),
+        .ORIGIN_Y(VGA_ORIGIN_Y),
+        .BASE_ADDR(VGA_BASE_ADDR)
+    ) u_tile_writer (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(demo_mode),
+        .frame_tick(frame_pulse),
+        .c_flat(c_flat),
+        .avm_address(avm_address),
+        .avm_write(avm_write),
+        .avm_writedata(avm_writedata),
+        .avm_waitrequest(avm_waitrequest)
     );
 
 endmodule

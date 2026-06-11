@@ -10,6 +10,10 @@ module control_FSM
     input logic a_fifo_empty,
     input logic b_fifo_empty,
 
+    //Datapath clock-enable; tie high for full speed. Driving it with the
+    //demo tick keeps pop_fifos/enable_array aligned by construction
+    input logic tick_en,
+
     output logic enable_array,
     output logic pop_fifos,
     output logic clear_acc,
@@ -36,15 +40,15 @@ module control_FSM
         end else begin
             current_state <= next_state;
 
-            //Counters change depending on state
+            //Counters only advance on gated cycles
             if(current_state == COMPUTE) begin
-                compute_counter <= compute_counter + 1;
+                if(tick_en) compute_counter <= compute_counter + 1;
             end else if(current_state == IDLE) begin
                 compute_counter <= 0;
             end
 
             if(current_state == DRAIN) begin
-                drain_counter <= drain_counter + 1;
+                if(tick_en) drain_counter <= drain_counter + 1;
             end else if(current_state == IDLE) begin
                 drain_counter <= 0;
             end
@@ -62,12 +66,12 @@ module control_FSM
                 end
             end
             COMPUTE: begin
-                if(compute_counter == MAT_DIM - 1) begin
+                if(tick_en && compute_counter == MAT_DIM - 1) begin
                     next_state = DRAIN;
                 end
             end
             DRAIN: begin
-                if(drain_counter == (2 * ARRAY_SIZE - 1)) begin
+                if(tick_en && drain_counter == (2 * ARRAY_SIZE - 1)) begin
                     next_state = STREAM_OUT;
                 end
             end
@@ -92,11 +96,11 @@ module control_FSM
                 clear_acc = (next_state == COMPUTE);
             end
             COMPUTE: begin
-                pop_fifos    = 1'b1;
-                enable_array = 1'b1;
+                pop_fifos    = tick_en;
+                enable_array = tick_en;
             end
             DRAIN: begin
-                enable_array = 1'b1;
+                enable_array = tick_en;
             end
             STREAM_OUT: begin
                 done = 1'b1; //1 cycle pulse; latched sticky in the CSR
