@@ -10,8 +10,10 @@ VERILOG_SOURCES += $(RTL_DIR)/pe/pe.sv
 VERILOG_SOURCES += $(RTL_DIR)/array/skew_reg.sv
 VERILOG_SOURCES += $(RTL_DIR)/array/systolic_array.sv
 VERILOG_SOURCES += $(RTL_DIR)/array/control_FSM.sv
+VERILOG_SOURCES += $(RTL_DIR)/array/demo_tick.sv
 VERILOG_SOURCES += $(RTL_DIR)/bus_wrapper/sync_fifo.sv
 VERILOG_SOURCES += $(RTL_DIR)/bus_wrapper/avalon_csr.sv
+VERILOG_SOURCES += $(RTL_DIR)/bus_wrapper/vga_tile_writer.sv
 VERILOG_SOURCES += $(RTL_DIR)/array/accelerator_top.sv
 
 # cocotb 1.x names

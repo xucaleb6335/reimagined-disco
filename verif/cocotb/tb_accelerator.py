@@ -14,9 +14,11 @@ from cocotb.triggers import RisingEdge, ReadOnly
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
-CTRL_ADDR   = 0
-STATUS_ADDR = 1
-RESULT_BASE = 2
+CTRL_ADDR      = 0
+STATUS_ADDR    = 1
+RESULT_BASE    = 2
+DEMO_CTRL_ADDR = 18
+DEMO_DIV_ADDR  = 19
 
 DONE_TIMEOUT = 200 #poll iterations before declaring the run hung
 
@@ -50,6 +52,7 @@ async def reset_dut(dut):
     dut.avs_write.value = 0
     dut.avs_read.value = 0
     dut.avs_writedata.value = 0
+    dut.avm_waitrequest.value = 0
     for _ in range(5):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
@@ -96,12 +99,13 @@ async def avalon_read(dut, addr):
 
 
 async def run_matmul(dut, a, b, c_gold, name, stall_prob):
+    #Returns the number of DONE polls, a proxy for run latency
     size = a.shape[0]
 
     await axis_send(dut, matrix_to_beats(a, b), stall_prob)
     await avalon_write(dut, CTRL_ADDR, 1) #START
 
-    for _ in range(DONE_TIMEOUT):
+    for polls in range(DONE_TIMEOUT):
         if await avalon_read(dut, STATUS_ADDR) & 1:
             break
     else:
@@ -118,6 +122,18 @@ async def run_matmul(dut, a, b, c_gold, name, stall_prob):
         f"{name}: mismatch\nA=\n{a}\nB=\n{b}\nDUT=\n{c_dut}\nGOLD=\n{c_gold}"
     )
     dut._log.info(f"{name}: PASS")
+    return polls
+
+
+async def pop_enable_invariant(dut):
+    #Demo-mode safety property (plan item B.2): popping the FIFOs without
+    #accumulating (or vice versa) corrupts the dataflow, so pop_fifos
+    #must never assert without enable_array
+    while True:
+        await ReadOnly()
+        assert not (int(dut.pop_fifos.value) and not int(dut.enable_array.value)), \
+            "pop_fifos asserted without enable_array"
+        await RisingEdge(dut.clk)
 
 
 @cocotb.test()
@@ -150,3 +166,42 @@ async def accelerator_heavy_backpressure(dut):
     data = np.load(cases[0])
     await run_matmul(dut, data["a"], data["b"], data["c"], cases[0].stem,
                      stall_prob=0.8)
+
+
+@cocotb.test()
+async def accelerator_demo_mode(dut):
+    """Demo mode: tick-gated run still matches the golden model, the
+    pop/enable invariant holds throughout, and normal speed returns
+    when demo mode is switched off again"""
+    random.seed(2)
+    cases = sorted(DATA_DIR.glob("*.npz"))
+    assert cases, f"no test vectors in {DATA_DIR}; run scripts/golden_model.py"
+
+    cocotb.start_soon(Clock(dut.clk, 10, "ns").start())
+    await reset_dut(dut)
+    checker = cocotb.start_soon(pop_enable_invariant(dut))
+
+    #Reference run at full speed
+    data = np.load(cases[0])
+    fast_polls = await run_matmul(dut, data["a"], data["b"], data["c"],
+                                  f"{cases[0].stem} (full speed)",
+                                  stall_prob=0.2)
+
+    #Same vector with the datapath gated to one step every 16 cycles
+    await avalon_write(dut, DEMO_DIV_ADDR, 16)
+    await avalon_write(dut, DEMO_CTRL_ADDR, 1)
+    demo_polls = await run_matmul(dut, data["a"], data["b"], data["c"],
+                                  f"{cases[0].stem} (demo mode)",
+                                  stall_prob=0.2)
+    assert demo_polls > fast_polls, (
+        f"demo mode did not slow the run: {demo_polls} polls vs "
+        f"{fast_polls} at full speed"
+    )
+
+    #Demo mode off: back to normal, results still clean (clear_acc path)
+    await avalon_write(dut, DEMO_CTRL_ADDR, 0)
+    data = np.load(cases[-1])
+    await run_matmul(dut, data["a"], data["b"], data["c"],
+                     f"{cases[-1].stem} (demo off again)", stall_prob=0.2)
+
+    checker.cancel()
