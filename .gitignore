@@ -38,3 +38,7 @@ verif/vectors/*.hex
 # --- IDEs ---
 .vscode/
 .idea/
+results.xml
+*.ppm
+sw/host_driver_sim
+sw/host_driver
